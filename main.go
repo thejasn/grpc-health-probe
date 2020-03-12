@@ -23,6 +23,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"google.golang.org/grpc"
@@ -163,7 +164,19 @@ func buildCredentials(skipVerify bool, caCerts, clientCert, clientKey, serverNam
 
 func main() {
 	retcode := 0
-	defer func() { os.Exit(retcode) }()
+	sigs := make(chan os.Signal, 1)
+	done := make(chan bool, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		sig := <-sigs
+		fmt.Println()
+		fmt.Println(sig)
+		done <- true
+	}()
+	defer func() {
+		log.Println(retcode)
+		<-done
+	}()
 
 	ctx, cancel := context.WithCancel(context.Background())
 
